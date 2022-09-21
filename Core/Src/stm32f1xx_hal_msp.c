@@ -101,6 +101,17 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
     PB6     ------> I2C1_SCL
     PB7     ------> I2C1_SDA
     */
+//    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+//	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+//	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+//	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+//
+//	GPIOB->ODR |= (GPIO_PIN_6|GPIO_PIN_7);
+//	GPIOB->ODR &= ~GPIO_PIN_7;
+//	GPIOB->ODR &= ~GPIO_PIN_6;
+//	GPIOB->ODR |= GPIO_PIN_6;
+//	GPIOB->ODR |= GPIO_PIN_7;
+
     GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
@@ -108,8 +119,18 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
 
     /* Peripheral clock enable */
     __HAL_RCC_I2C1_CLK_ENABLE();
+    /* I2C1 interrupt Init */
+    HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
+    HAL_NVIC_SetPriority(I2C1_ER_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(I2C1_ER_IRQn);
   /* USER CODE BEGIN I2C1_MspInit 1 */
-
+    // work around which solves I2C initial busy problem.
+        // I2C gets busy during setup, just after I2C clock enable.
+        // force/release reset at this point helps to reset the busy
+        // flag of the I2C and lets the I2C interface work as expected.
+//     __HAL_RCC_I2C1_FORCE_RESET();
+//     __HAL_RCC_I2C1_RELEASE_RESET();
   /* USER CODE END I2C1_MspInit 1 */
   }
 
@@ -139,6 +160,9 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
 
+    /* I2C1 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(I2C1_EV_IRQn);
+    HAL_NVIC_DisableIRQ(I2C1_ER_IRQn);
   /* USER CODE BEGIN I2C1_MspDeInit 1 */
 
   /* USER CODE END I2C1_MspDeInit 1 */

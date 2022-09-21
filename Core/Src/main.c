@@ -23,7 +23,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bq25601.h"
+#include "ds2782.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +45,7 @@
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-
+uint8_t ds2782_reg0 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -52,7 +53,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void checkPowerButton(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -91,6 +92,8 @@ int main(void)
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  bq25601_drv->Init();
+  ds2782_reg0 = DS2782_test();
   LED_GPIO_Port->ODR |= LED_Pin; // indicate power on state
   /* USER CODE END 2 */
 
@@ -101,6 +104,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  checkPowerButton();
+	  HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
@@ -225,10 +230,34 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */
+static void checkPowerButton(void)
+{
+  static uint8_t powerOffCntr = 0;
+  static uint8_t isPwrBtnPressed = 0;
 
+  if((PWR_BTN_GPIO_Port->IDR & PWR_BTN_Pin) == 0 && !isPwrBtnPressed)
+  {
+	  isPwrBtnPressed = 1;
+	  powerOffCntr++;
+  }
+  else if((PWR_BTN_GPIO_Port->IDR & PWR_BTN_Pin) == 0 && isPwrBtnPressed)
+  {
+	  if(powerOffCntr++ >= 10)
+	  {
+		  powerOffCntr = 0;
+		  bq25601_drv->PowerOff();
+	  }
+  }
+  else if((PWR_BTN_GPIO_Port->IDR & PWR_BTN_Pin) && isPwrBtnPressed)
+  {
+	  powerOffCntr = 0;
+	  isPwrBtnPressed = 0;
+  }
+}
 /* USER CODE END 4 */
 
 /**

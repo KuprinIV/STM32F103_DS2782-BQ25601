@@ -93,4 +93,6 @@
 #define LOCK_CMD_BLK0			0x63
 #define LOCK_CMD_BLK1			0x66
 
+uint8_t DS2782_test(void);
+
 #endif /* INC_DS2782_H_ */

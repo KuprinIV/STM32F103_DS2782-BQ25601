@@ -35,3 +35,10 @@ static uint8_t readRegister(uint8_t addr)
 	HAL_I2C_Master_Receive(&hi2c1, DS2782_SLAVE_ADDR, &rxData, 1, 1000); // receive register value
 	return rxData;
 }
+
+uint8_t DS2782_test(void)
+{
+	uint8_t res = 0;
+	res = readRegister(STATUS_REG);
+	return res;
+}
