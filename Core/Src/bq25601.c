@@ -71,22 +71,31 @@ static uint8_t readRegister(uint8_t addr)
 static void BQ25601_init(void)
 {
 	uint8_t temp_reg = 0;
-	// set charge current to 400 mA
+	// set input current limit to 500 mA
 	temp_reg = readRegister(REG00);
-	if((temp_reg & 0x04) != 0x04)
+	if((temp_reg & 0x1F) != 0x05)
 	{
 		temp_reg &= 0xE0;
-		temp_reg |= 0x04;
+		temp_reg |= 0x05;
 		writeRegister(REG00, temp_reg);
 	}
 	// set SYS_Min voltage to 3.2V
 	temp_reg = readRegister(REG01);
-	if((temp_reg & 0x06) != 0x06)
+	if((temp_reg & 0x0E) != 0x06)
 	{
 		temp_reg &= 0xF1;
 		temp_reg |= 0x06;
 		writeRegister(REG01, temp_reg);
 	}
+	// set charge current 360 mA
+	temp_reg = readRegister(REG02);
+	if((temp_reg & 0x3F) != 0x06)
+	{
+		temp_reg &= 0xC0;
+		temp_reg |= 0x06;
+		writeRegister(REG02, temp_reg);
+	}
+
 	// set pre-charge current 120 mA and termination current 60 mA
 	temp_reg = readRegister(REG03);
 	if((temp_reg & 0x10) != 0x10)
@@ -96,7 +105,7 @@ static void BQ25601_init(void)
 	}
 	// set top-off timer to 15 min and rechargable threshold 200 mV
 	temp_reg = readRegister(REG04);
-	if((temp_reg & 0x03) != 0x03)
+	if((temp_reg & 0x07) != 0x03)
 	{
 		temp_reg &= 0xF8;
 		temp_reg |= 0x03;
@@ -146,7 +155,10 @@ static void BQ25601_getState(BQ25601_Status* state)
 */
 static void BQ25601_getChargerFault(BQ25601_FaultType* fault)
 {
-	uint8_t reg09 = readRegister(REG09); // read REG09 data
+	// read REG09 data
+	uint8_t reg09 = 0;
+	reg09 = readRegister(REG09); // the first read reports the pre-existing fault register status
+	reg09 = readRegister(REG09); // the second read reports the current fault register status.
 	// fill charger fault state
 	fault->is_watchdog_fault = (reg09 & 0x80)>>7;
 	fault->is_boost_fault = (reg09 & 0x40)>>6;
@@ -169,5 +181,18 @@ static void BQ25601_setChargerEnabled(uint8_t is_enabled)
 	else
 	{
 		GHGEN_GPIO_Port->ODR |= GHGEN_Pin;
+	}
+}
+
+// handle INT pulse event
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	BQ25601_Status charger_status;
+	BQ25601_FaultType charger_fault_state;
+
+	if(GPIO_Pin == INT_Pin)
+	{
+		BQ25601_getState(&charger_status); // read charger status
+		BQ25601_getChargerFault(&charger_fault_state); // read charger faults state
 	}
 }

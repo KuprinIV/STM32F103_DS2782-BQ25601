@@ -93,6 +93,7 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   bq25601_drv->Init();
+  bq25601_drv->SetChargerEnabled(1);
   ds2782_reg0 = DS2782_test();
   LED_GPIO_Port->ODR |= LED_Pin; // indicate power on state
   /* USER CODE END 2 */
@@ -225,11 +226,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(QON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : INT_Pin PG_Pin */
-  GPIO_InitStruct.Pin = INT_Pin|PG_Pin;
+  /*Configure GPIO pin : INT_Pin */
+  GPIO_InitStruct.Pin = INT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(INT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PG_Pin */
+  GPIO_InitStruct.Pin = PG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(PG_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 }
 

@@ -68,6 +68,7 @@ void Error_Handler(void);
 #define GHGEN_GPIO_Port GPIOB
 #define INT_Pin GPIO_PIN_4
 #define INT_GPIO_Port GPIOB
+#define INT_EXTI_IRQn EXTI4_IRQn
 #define PG_Pin GPIO_PIN_5
 #define PG_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
