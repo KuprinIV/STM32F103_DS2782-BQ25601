@@ -15,8 +15,8 @@ static void BQ25601_getChargerFault(BQ25601_FaultType* fault);
 static void BQ25601_setChargerEnabled(uint8_t is_enabled);
 
 // inner functions
-static void writeRegister(uint8_t addr, uint8_t value);
-static uint8_t readRegister(uint8_t addr);
+static void BQ25601_writeRegister(uint8_t addr, uint8_t value);
+static uint8_t BQ25601_readRegister(uint8_t addr);
 
 // init driver
 BQ25601_Driver bq25601_driver = {
@@ -37,7 +37,7 @@ extern I2C_HandleTypeDef hi2c1;
  * @param: addr - register address
  * @param: value - register data
  */
-static void writeRegister(uint8_t addr, uint8_t value)
+static void BQ25601_writeRegister(uint8_t addr, uint8_t value)
 {
 	uint8_t data[2] = {0};
 	data[0] = addr;
@@ -51,7 +51,7 @@ static void writeRegister(uint8_t addr, uint8_t value)
  * @param: addr - register address
  * @return: register data
  */
-static uint8_t readRegister(uint8_t addr)
+static uint8_t BQ25601_readRegister(uint8_t addr)
 {
 	uint8_t txData = 0;
 	uint8_t rxData = 0;
@@ -72,52 +72,52 @@ static void BQ25601_init(void)
 {
 	uint8_t temp_reg = 0;
 	// set input current limit to 500 mA
-	temp_reg = readRegister(REG00);
+	temp_reg = BQ25601_readRegister(REG00);
 	if((temp_reg & 0x1F) != 0x05)
 	{
 		temp_reg &= 0xE0;
 		temp_reg |= 0x05;
-		writeRegister(REG00, temp_reg);
+		BQ25601_writeRegister(REG00, temp_reg);
 	}
 	// set SYS_Min voltage to 3.2V
-	temp_reg = readRegister(REG01);
+	temp_reg = BQ25601_readRegister(REG01);
 	if((temp_reg & 0x0E) != 0x06)
 	{
 		temp_reg &= 0xF1;
 		temp_reg |= 0x06;
-		writeRegister(REG01, temp_reg);
+		BQ25601_writeRegister(REG01, temp_reg);
 	}
 	// set charge current 360 mA
-	temp_reg = readRegister(REG02);
+	temp_reg = BQ25601_readRegister(REG02);
 	if((temp_reg & 0x3F) != 0x06)
 	{
 		temp_reg &= 0xC0;
 		temp_reg |= 0x06;
-		writeRegister(REG02, temp_reg);
+		BQ25601_writeRegister(REG02, temp_reg);
 	}
 
 	// set pre-charge current 120 mA and termination current 60 mA
-	temp_reg = readRegister(REG03);
+	temp_reg = BQ25601_readRegister(REG03);
 	if((temp_reg & 0x10) != 0x10)
 	{
 		temp_reg = 0x10;
-		writeRegister(REG03, temp_reg);
+		BQ25601_writeRegister(REG03, temp_reg);
 	}
 	// set top-off timer to 15 min and rechargable threshold 200 mV
-	temp_reg = readRegister(REG04);
+	temp_reg = BQ25601_readRegister(REG04);
 	if((temp_reg & 0x07) != 0x03)
 	{
 		temp_reg &= 0xF8;
 		temp_reg |= 0x03;
-		writeRegister(REG04, temp_reg);
+		BQ25601_writeRegister(REG04, temp_reg);
 	}
 	// set charger voltage to VREG = 4.208 V
-	temp_reg = readRegister(REG07);
+	temp_reg = BQ25601_readRegister(REG07);
 	if((temp_reg & 0x10) != 0x10)
 	{
 		temp_reg &= 0xEF;
 		temp_reg |= 0x10;
-		writeRegister(REG07, temp_reg);
+		BQ25601_writeRegister(REG07, temp_reg);
 	}
 }
 
@@ -128,9 +128,9 @@ static void BQ25601_init(void)
  */
 static void BQ25601_powerOff(void)
 {
-	uint8_t reg07 = readRegister(REG07); // read REG07 data
-	writeRegister(REG07, reg07 & 0xF7); // reset BATFET_DLY bit
-	writeRegister(REG07, reg07 | 0x20); // set BATFET_DIS bit
+	uint8_t reg07 = BQ25601_readRegister(REG07); // read REG07 data
+	BQ25601_writeRegister(REG07, reg07 & 0xF7); // reset BATFET_DLY bit
+	BQ25601_writeRegister(REG07, reg07 | 0x20); // set BATFET_DIS bit
 }
 
 /**
@@ -140,12 +140,12 @@ static void BQ25601_powerOff(void)
 */
 static void BQ25601_getState(BQ25601_Status* state)
 {
-	uint8_t reg08 = readRegister(REG08); // read REG08 data
+	uint8_t reg08 = BQ25601_readRegister(REG08); // read REG08 data
 	// fill charger state data
 	state->vbus_status = (reg08 & 0xE0)>>5;
 	state->charger_status = (reg08 & 0x18)>>3;
 	state->is_power_good = (reg08 & 0x04)>>2;
-	state->is_vbat_low = reg08 & 0x01;
+	state->is_vbat_low = (reg08 & 0x01);
 }
 
 /**
@@ -157,14 +157,14 @@ static void BQ25601_getChargerFault(BQ25601_FaultType* fault)
 {
 	// read REG09 data
 	uint8_t reg09 = 0;
-	reg09 = readRegister(REG09); // the first read reports the pre-existing fault register status
-	reg09 = readRegister(REG09); // the second read reports the current fault register status.
+	reg09 = BQ25601_readRegister(REG09); // the first read reports the pre-existing fault register status
+	reg09 = BQ25601_readRegister(REG09); // the second read reports the current fault register status.
 	// fill charger fault state
 	fault->is_watchdog_fault = (reg09 & 0x80)>>7;
 	fault->is_boost_fault = (reg09 & 0x40)>>6;
 	fault->charge_fault = (reg09 & 0x30)>>4;
 	fault->is_bat_ovp = (reg09 & 0x08)>>3;
-	fault->ntc_fault = reg09 & 0x07;
+	fault->ntc_fault = (reg09 & 0x07);
 }
 
 /**

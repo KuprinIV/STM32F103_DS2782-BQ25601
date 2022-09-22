@@ -45,7 +45,7 @@
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-uint8_t ds2782_reg0 = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,9 +92,9 @@ int main(void)
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  bq25601_drv->Init();
   bq25601_drv->SetChargerEnabled(1);
-  ds2782_reg0 = DS2782_test();
+  bq25601_drv->Init();
+  ds2782_drv->Init();
   LED_GPIO_Port->ODR |= LED_Pin; // indicate power on state
   /* USER CODE END 2 */
 

@@ -75,6 +75,14 @@
 #define FRSGAIN_LSB_MB			0x7C	// Factory Gain LSB
 #define I2C_SLAVE_ADDR_MB		0x7E	// 2-Wire (I2C) Slave Address
 
+// status bits values
+#define CHARGE_TERMINATION_FLAG	0x80
+#define ACTIVE_EMPTY_FLAG		0x40
+#define STANDBY_EMPTY_FLAG		0x20
+#define LEARN_FLAG				0x10
+#define UNDER_VOLTAGE_FLAG		0x04
+#define POWER_ON_RESET_FLAG		0x02
+
 // function commands
 /**
  * This command copies the shadow RAM to the target EEPROM block.
@@ -93,6 +101,29 @@
 #define LOCK_CMD_BLK0			0x63
 #define LOCK_CMD_BLK1			0x66
 
-uint8_t DS2782_test(void);
+typedef struct
+{
+	void (*Init)(void);
+	int16_t (*ReadBatteryVoltage)(void);
+	int16_t (*ReadBatteryCurrent)(void);
+	uint8_t (*ReadActiveRelativeCapacity)(void);
+	uint8_t (*ReadStandbyRelativeCapacity)(void);
+	uint8_t (*ReadStatus)(void);
+	void (*ReadEepromBlock1)(uint8_t start_addr, uint8_t* data, uint8_t length);
+	void (*WriteEepromBlock1)(uint8_t start_addr, uint8_t* data, uint8_t length);
+	void (*LockEepromBlock)(uint8_t block_num);
+}DS2782_Driver;
+
+typedef struct
+{
+	uint8_t Rsense;
+	uint8_t Vcharge;
+	uint8_t Imin;
+	uint8_t VoltAE;
+	uint8_t CurrentAE;
+	uint16_t agingCapacity;
+}DS2782_InitParams;
+
+extern DS2782_Driver* ds2782_drv;
 
 #endif /* INC_DS2782_H_ */
