@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "bq25601.h"
 #include "ds2782.h"
+#include "usbd_custom_hid_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,14 +45,21 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
-/* USER CODE BEGIN PV */
+TIM_HandleTypeDef htim4;
 
+/* USER CODE BEGIN PV */
+volatile uint8_t isUpdateEvent = 0;
+volatile uint8_t ae_cnt_div = 0;
+volatile uint8_t battery_status_cnt_div = 0;
+uint8_t bat_status_report[6] = {0};
+uint8_t ds2782_status_report[2] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 static void checkPowerButton(void);
 /* USER CODE END PFP */
@@ -91,10 +99,12 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   bq25601_drv->SetChargerEnabled(1);
   bq25601_drv->Init();
   ds2782_drv->Init();
+  HAL_TIM_Base_Start_IT(&htim4); // start scanning timer
   LED_GPIO_Port->ODR |= LED_Pin; // indicate power on state
   /* USER CODE END 2 */
 
@@ -105,8 +115,46 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  checkPowerButton();
-	  HAL_Delay(100);
+	  if(isUpdateEvent)
+	  {
+		  isUpdateEvent = 0;
+		  checkPowerButton();
+		  // if active empty state and no charge input make power off
+		  if((ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG) && (PG_GPIO_Port->IDR & PG_Pin))
+		  {
+			  bq25601_drv->PowerOff();
+		  }
+		  // detect active empty state
+		  if((ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG) && ae_cnt_div == 3)
+		  {
+			  LED_GPIO_Port->ODR ^= LED_Pin;
+		  }
+		  ae_cnt_div = (ae_cnt_div+1) & 0x03;
+		  // send battery and DS2782 status data via USB
+		  if(battery_status_cnt_div < 20)
+		  {
+			  if(battery_status_cnt_div == 10)
+			  {
+				  ds2782_status_report[0] = 0x02;
+				  ds2782_status_report[1] = ds2782_drv->ReadStatus();
+				  USBD_CUSTOM_HID_SendReport_FS(ds2782_status_report, sizeof(ds2782_status_report));
+			  }
+			  battery_status_cnt_div++;
+		  }
+		  else
+		  {
+			  battery_status_cnt_div = 0;
+
+			  // fill battery status report data
+			  bat_status_report[0] = 0x01; // report ID
+			  bat_status_report[1] = (uint8_t)(ds2782_drv->ReadBatteryVoltage()>>8);
+			  bat_status_report[2] = (uint8_t)(ds2782_drv->ReadBatteryVoltage() & 0xFF);
+			  bat_status_report[3] = (uint8_t)(ds2782_drv->ReadBatteryCurrent()>>8);
+			  bat_status_report[4] = (uint8_t)(ds2782_drv->ReadBatteryCurrent() & 0xFF);
+			  bat_status_report[5] = ds2782_drv->ReadActiveRelativeCapacity();
+			  USBD_CUSTOM_HID_SendReport_FS(bat_status_report, sizeof(bat_status_report));
+		  }
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -191,6 +239,51 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 4799;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 999;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -268,6 +361,11 @@ static void checkPowerButton(void)
 	  powerOffCntr = 0;
 	  isPwrBtnPressed = 0;
   }
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	isUpdateEvent = 1;
 }
 /* USER CODE END 4 */
 

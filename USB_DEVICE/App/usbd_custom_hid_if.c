@@ -23,7 +23,8 @@
 #include "usbd_custom_hid_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "bq25601.h"
+#include "ds2782.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,7 +93,92 @@
 __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DESC_SIZE] __ALIGN_END =
 {
   /* USER CODE BEGIN 0 */
-  0x00,
+		0x06, 0x00, 0xff,              // USAGE_PAGE (Vendor Defined Page 1)
+		0x09, 0x01,                    // USAGE (Vendor Usage 1)
+		0xa1, 0x01,                    // COLLECTION (Application)
+
+		/** read battery data state: (bytes: 0 - report ID (0x01), 1,2 - battery voltage (in volts*100), 3,4 - battery current (in mA),
+		 5 - battery relative capacity in %) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x01,               	   //   REPORT_ID (1)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x05,                    //   REPORT_SIZE (5)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
+
+		/** read DS2782 status register: (bytes: 0 - report ID (0x02), 1 - status register value) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x02,               	   //   REPORT_ID (2)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x01,                    //   REPORT_SIZE (1)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
+
+		/** read DS2782 EEPROM block 1 lock status: (bytes: 0 - report ID (0x03), 1 - lock state (0 - isn't locked, 1 - is locked)) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x03,               	   //   REPORT_ID (3)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x01,                    //   REPORT_SIZE (1)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
+
+		/** read DS2782 EEPROM block 1 data: (bytes: 0 - report ID (0x04), 1 - start address, 2 - data length) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x04,               	   //   REPORT_ID (4)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x02,                    //   REPORT_SIZE (2)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
+
+		/** send DS2782 EEPROM block 1 data: (bytes: 0 - report ID (0x05), 1...32 - EEPROM block 1 data) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x05,               	   //   REPORT_ID (5)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x20,                    //   REPORT_SIZE (32)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
+
+		/** write DS2782 EEPROM block 1 data: (bytes: 0 - report ID (0x06), 1 - start address, 2 - data length,  3...34 - EEPROM block 1 data) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x06,               	   //   REPORT_ID (6)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x22,                    //   REPORT_SIZE (34)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
+
+		/** read BQ25601 status data: (bytes: 0 - report ID (0x07), 1...4 - BQ25601 status register value) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x07,               	   //   REPORT_ID (7)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x04,                    //   REPORT_SIZE (4)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
+
+		/** read BQ25601 fault state data: (bytes: 0 - report ID (0x08), 1...5 - BQ25601 fault register value) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x08,               	   //   REPORT_ID (8)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x05,                    //   REPORT_SIZE (5)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
+
+		/** Command report: (bytes: 0 - report ID (0x09), 1 - BQ25601 charger enabled state (0 - charger disabled, 1 - charger enabled),
+		 * 2 - DS2782 EEPROM block 1 lock (1 - lock memory block), 3 - read EEPROM block 1 lock status, 4 - read BQ25601 status data) */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x09,               	   //   REPORT_ID (9)
+		0x95, 0x08,                    //   REPORT_COUNT (8)
+		0x75, 0x04,                    //   REPORT_SIZE (4)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
   /* USER CODE END 0 */
   0xC0    /*     END_COLLECTION	             */
 };
@@ -169,6 +255,21 @@ static int8_t CUSTOM_HID_DeInit_FS(void)
 }
 
 /**
+  * @brief  Send the report to the Host
+  * @param  report: The report to be sent
+  * @param  len: The report length
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
+  */
+
+uint8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len)
+{
+	uint8_t report_data[33] = {0};
+	memcpy(report_data, report, len);
+	return USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report_data, sizeof(report_data));
+}
+
+
+/**
   * @brief  Manage the CUSTOM HID class events
   * @param  event_idx: Event index
   * @param  state: Event state
@@ -177,23 +278,53 @@ static int8_t CUSTOM_HID_DeInit_FS(void)
 static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state)
 {
   /* USER CODE BEGIN 6 */
+	uint8_t inputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
+	uint8_t outputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
+	BQ25601_Status bq25601_status;
+	USBD_CUSTOM_HID_HandleTypeDef  *hhid = (USBD_CUSTOM_HID_HandleTypeDef*)hUsbDeviceFS.pClassData;
+	memcpy(inputData, hhid->Report_buf, USBD_CUSTOMHID_OUTREPORT_BUF_SIZE);
+	switch(event_idx)
+	{
+		case 0x04:
+			outputData[0] = 0x05;
+			ds2782_drv->ReadEepromBlock1(inputData[1], outputData+1, inputData[2]);
+			USBD_CUSTOM_HID_SendReport_FS(outputData, 33);
+			break;
+
+		case 0x06: // write DS2782 EEPROM block 1 data
+			ds2782_drv->WriteEepromBlock1(inputData[1], inputData+3, inputData[2]);
+			break;
+
+		case 0x09: // set BQ25601 charger enabled state
+			bq25601_drv->SetChargerEnabled(inputData[1]);
+			if(inputData[2] == 1)
+			{
+				ds2782_drv->LockEepromBlock(1);
+			}
+			if(inputData[3] == 1)
+			{
+				outputData[0] = 0x03;
+				outputData[1] = ds2782_drv->IsEepromBlockLocked(1);
+				USBD_CUSTOM_HID_SendReport_FS(outputData, 2);
+			}
+			if(inputData[4] == 1)
+			{
+				outputData[0] = 0x07;
+				bq25601_drv->GetChargerState(&bq25601_status);
+				memcpy(outputData+1, &bq25601_status, sizeof(bq25601_status));
+				USBD_CUSTOM_HID_SendReport_FS(outputData, 5);
+			}
+			break;
+
+		default:
+			break;
+	}
   return (USBD_OK);
   /* USER CODE END 6 */
 }
 
 /* USER CODE BEGIN 7 */
-/**
-  * @brief  Send the report to the Host
-  * @param  report: The report to be sent
-  * @param  len: The report length
-  * @retval USBD_OK if all operations are OK else USBD_FAIL
-  */
-/*
-static int8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len)
-{
-  return USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, len);
-}
-*/
+
 /* USER CODE END 7 */
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */

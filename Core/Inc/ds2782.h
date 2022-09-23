@@ -112,6 +112,7 @@ typedef struct
 	void (*ReadEepromBlock1)(uint8_t start_addr, uint8_t* data, uint8_t length);
 	void (*WriteEepromBlock1)(uint8_t start_addr, uint8_t* data, uint8_t length);
 	void (*LockEepromBlock)(uint8_t block_num);
+	uint8_t (*IsEepromBlockLocked)(uint8_t block_num);
 }DS2782_Driver;
 
 typedef struct

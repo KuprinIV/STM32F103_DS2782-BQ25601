@@ -10,6 +10,7 @@ static uint8_t DS2782_readStatus(void);
 static void DS2782_readEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length);
 static void DS2782_writeEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length);
 static void DS2782_lockEepromBlock(uint8_t block_num);
+static uint8_t DS2782_isEepromBlockLocked(uint8_t block_num);
 
 // inner functions
 static void DS2782_writeRegister(uint8_t addr, uint8_t value);
@@ -28,6 +29,7 @@ DS2782_Driver ds2782_driver = {
 		DS2782_readEepromBlock1,
 		DS2782_writeEepromBlock1,
 		DS2782_lockEepromBlock,
+		DS2782_isEepromBlockLocked,
 };
 DS2782_Driver* ds2782_drv = &ds2782_driver;
 
@@ -84,7 +86,7 @@ static void DS2782_init(void)
 	ds2782_init.Vcharge = 215; 			// set Vchg = 4,2 V in 19,52 mV steps. Uses for detection full-charge state
 	ds2782_init.Imin = 75; 				// set Imin = 80 mA with Rsns = 47 mOhm. Uses for detection full-charge state
 	ds2782_init.VoltAE = 169; 			// set Active Empty voltage to 3,3 V in 19.52 mV steps. Uses for detecting Active Empty state
-	ds2782_init.CurrentAE = 3; 			// set Active Empty current 12,5 mA. Uses for detecting Active Empty state
+	ds2782_init.CurrentAE = 12; 		// set Active Empty current 50 mA. Uses for detecting Active Empty state
 	ds2782_init.agingCapacity = 5414; 	// set battery capacity 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
 
 	// check battery parameters in DS2782 EEPROM
@@ -244,7 +246,7 @@ static void DS2782_writeEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t 
 
 /**
  * @brief Execute lock EEPROM memory block in DS2782. Lock command is permanent!
- * @param: None
+ * @param: block_num - EEPROM block number
  * @return: None
  */
 static void DS2782_lockEepromBlock(uint8_t block_num)
@@ -274,8 +276,29 @@ static void DS2782_lockEepromBlock(uint8_t block_num)
 }
 
 /**
+ * @brief Check is EEPROM memory block in DS2782 locked
+ * @param: block_num - EEPROM block number
+ * @return: 0 - EEPROM block isn't locked, 1 - EEPROM block is locked
+ */
+static uint8_t DS2782_isEepromBlockLocked(uint8_t block_num)
+{
+	uint8_t eeprom_reg = DS2782_readRegister(EEPROM_REG);
+	uint8_t result = 0;
+
+	if(block_num == 0)
+	{
+		if(eeprom_reg & 0x01) result = 1;
+	}
+	else if(block_num == 1)
+	{
+		if(eeprom_reg & 0x02) result = 1;
+	}
+	return result;
+}
+
+/**
  * @brief Execute copy shadow RAM data into EEPROM memory block in DS2782.
- * @param: None
+ * @param: block_num - EEPROM block number
  * @return: None
  */
 static void DS2782_copyDataEepromBlock(uint8_t block_num)
@@ -289,15 +312,11 @@ static void DS2782_copyDataEepromBlock(uint8_t block_num)
 	{
 		DS2782_writeRegister(FUNCTION_CR_REG, COPY_DATA_CMD_BLK1);
 	}
-	else // EEPROM block number is incorrect
-	{
-		return;
-	}
 }
 
 /**
  * @brief Execute recall EEPROM memory block data into shadow RAM in DS2782.
- * @param: None
+ * @param: block_num - EEPROM block number
  * @return: None
  */
 static void DS2782_recallDataEepromBlock(uint8_t block_num)
@@ -310,9 +329,5 @@ static void DS2782_recallDataEepromBlock(uint8_t block_num)
 	else if(block_num == 1)
 	{
 		DS2782_writeRegister(FUNCTION_CR_REG, RECALL_DATA_CMD_BLK1);
-	}
-	else // EEPROM block number is incorrect
-	{
-		return;
 	}
 }

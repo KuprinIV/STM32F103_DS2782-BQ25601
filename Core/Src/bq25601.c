@@ -6,6 +6,7 @@
  */
 #include "bq25601.h"
 #include "main.h"
+#include "usbd_custom_hid_if.h"
 
 // driver functions
 static void BQ25601_init(void);
@@ -189,10 +190,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	BQ25601_Status charger_status;
 	BQ25601_FaultType charger_fault_state;
+	uint8_t out_report_data[6] = {0};
 
 	if(GPIO_Pin == INT_Pin)
 	{
 		BQ25601_getState(&charger_status); // read charger status
 		BQ25601_getChargerFault(&charger_fault_state); // read charger faults state
+		if(charger_fault_state.charge_fault != 0 || charger_fault_state.is_bat_ovp != 0 || charger_fault_state.is_boost_fault != 0 ||
+				charger_fault_state.is_watchdog_fault != 0 || charger_fault_state.ntc_fault != 0)
+		{
+			out_report_data[0] = 0x08;
+			memcpy(out_report_data+1, &charger_fault_state, sizeof(charger_fault_state));
+			USBD_CUSTOM_HID_SendReport_FS(out_report_data, 6);
+		}
 	}
 }
