@@ -76,7 +76,8 @@ static void checkPowerButton(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	int16_t batteryVoltage = 0;
+	int16_t batteryCurrent = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -144,13 +145,15 @@ int main(void)
 		  else
 		  {
 			  battery_status_cnt_div = 0;
-
+			  // read battery voltage and current values
+			  batteryVoltage = ds2782_drv->ReadBatteryVoltage();
+			  batteryCurrent = ds2782_drv->ReadBatteryCurrent();
 			  // fill battery status report data
 			  bat_status_report[0] = 0x01; // report ID
-			  bat_status_report[1] = (uint8_t)(ds2782_drv->ReadBatteryVoltage()>>8);
-			  bat_status_report[2] = (uint8_t)(ds2782_drv->ReadBatteryVoltage() & 0xFF);
-			  bat_status_report[3] = (uint8_t)(ds2782_drv->ReadBatteryCurrent()>>8);
-			  bat_status_report[4] = (uint8_t)(ds2782_drv->ReadBatteryCurrent() & 0xFF);
+			  bat_status_report[1] = (uint8_t)(batteryVoltage>>8);
+			  bat_status_report[2] = (uint8_t)(batteryVoltage & 0xFF);
+			  bat_status_report[3] = (uint8_t)(batteryCurrent>>8);
+			  bat_status_report[4] = (uint8_t)(batteryCurrent & 0xFF);
 			  bat_status_report[5] = ds2782_drv->ReadActiveRelativeCapacity();
 			  USBD_CUSTOM_HID_SendReport_FS(bat_status_report, sizeof(bat_status_report));
 		  }

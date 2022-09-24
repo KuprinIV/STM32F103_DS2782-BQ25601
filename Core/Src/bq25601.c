@@ -112,11 +112,18 @@ static void BQ25601_init(void)
 		temp_reg |= 0x03;
 		BQ25601_writeRegister(REG04, temp_reg);
 	}
+	// disable watchdog timer
+	temp_reg = BQ25601_readRegister(REG05);
+	if((temp_reg & 0x30) != 0)
+	{
+		temp_reg &= 0xCF;
+		BQ25601_writeRegister(REG05, temp_reg);
+	}
 	// set charger voltage to VREG = 4.208 V
 	temp_reg = BQ25601_readRegister(REG07);
-	if((temp_reg & 0x10) != 0x10)
+	if((temp_reg & 0x30) != 0x10)
 	{
-		temp_reg &= 0xEF;
+		temp_reg &= 0xCF;
 		temp_reg |= 0x10;
 		BQ25601_writeRegister(REG07, temp_reg);
 	}
