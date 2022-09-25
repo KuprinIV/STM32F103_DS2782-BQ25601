@@ -25,6 +25,7 @@
 /* USER CODE BEGIN INCLUDE */
 #include "bq25601.h"
 #include "ds2782.h"
+#include "main.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -171,11 +172,12 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
 		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
 
 		/** Command report: (bytes: 0 - report ID (0x09), 1 - BQ25601 charger enabled state (0 - charger disabled, 1 - charger enabled),
-		 * 2 - DS2782 EEPROM block 1 lock (1 - lock memory block), 3 - read EEPROM block 1 lock status, 4 - read BQ25601 status data) */
+		 * 2 - DS2782 EEPROM block 1 lock (1 - lock memory block), 3 - read EEPROM block 1 lock status, 4 - read BQ25601 status data),
+		 * 5 - load 66 mA ctrl (0 - disabled, 1 - enabled) */
 		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
 		0x85, 0x09,               	   //   REPORT_ID (9)
 		0x95, 0x08,                    //   REPORT_COUNT (8)
-		0x75, 0x04,                    //   REPORT_SIZE (4)
+		0x75, 0x05,                    //   REPORT_SIZE (5)
 		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
 		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
 		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
@@ -314,6 +316,7 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state)
 				memcpy(outputData+1, &bq25601_status, sizeof(bq25601_status));
 				USBD_CUSTOM_HID_SendReport_FS(outputData, 5);
 			}
+			Load_66mA_Ctrl(inputData[5] & 0x01);
 			break;
 
 		default:

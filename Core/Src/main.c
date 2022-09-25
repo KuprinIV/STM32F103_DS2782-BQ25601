@@ -78,6 +78,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	int16_t batteryVoltage = 0;
 	int16_t batteryCurrent = 0;
+	uint8_t pg_state_prev = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -107,6 +108,8 @@ int main(void)
   ds2782_drv->Init();
   HAL_TIM_Base_Start_IT(&htim4); // start scanning timer
   LED_GPIO_Port->ODR |= LED_Pin; // indicate power on state
+  // enable load 66 mA if no input charger source
+  Load_66mA_Ctrl((PG_GPIO_Port->IDR & PG_Pin) != 0);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -156,6 +159,17 @@ int main(void)
 			  bat_status_report[4] = (uint8_t)(batteryCurrent & 0xFF);
 			  bat_status_report[5] = ds2782_drv->ReadActiveRelativeCapacity();
 			  USBD_CUSTOM_HID_SendReport_FS(bat_status_report, sizeof(bat_status_report));
+		  }
+
+		  if(!(PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 0)
+		  {
+			  pg_state_prev = 1;
+			  Load_66mA_Ctrl(0);
+		  }
+		  else if((PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 1)
+		  {
+			  pg_state_prev = 0;
+			  Load_66mA_Ctrl(1);
 		  }
 	  }
   }
@@ -297,11 +311,21 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LOAD_EN_GPIO_Port, LOAD_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED_Pin|GHGEN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : LOAD_EN_Pin */
+  GPIO_InitStruct.Pin = LOAD_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LOAD_EN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_Pin GHGEN_Pin */
   GPIO_InitStruct.Pin = LED_Pin|GHGEN_Pin;
@@ -364,6 +388,18 @@ static void checkPowerButton(void)
 	  powerOffCntr = 0;
 	  isPwrBtnPressed = 0;
   }
+}
+
+void Load_66mA_Ctrl(uint8_t is_enabled)
+{
+	if(is_enabled)
+	{
+		LOAD_EN_GPIO_Port->ODR |= LOAD_EN_Pin;
+	}
+	else
+	{
+		LOAD_EN_GPIO_Port->ODR &= ~LOAD_EN_Pin;
+	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)

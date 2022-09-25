@@ -80,6 +80,8 @@ static void DS2782_init(void)
 	uint8_t vae = 0;
 	uint8_t iae = 0;
 	uint16_t ac = 0;
+	uint16_t fc40 = 0;
+	uint8_t full3040_slope = 0;
 
 	// store battery parameters in data structure
 	ds2782_init.Rsense = 12; 			// set Rsns = 47 mOhm in 3,922 mOhm steps
@@ -88,6 +90,20 @@ static void DS2782_init(void)
 	ds2782_init.VoltAE = 169; 			// set Active Empty voltage to 3,3 V in 19.52 mV steps. Uses for detecting Active Empty state
 	ds2782_init.CurrentAE = 12; 		// set Active Empty current 50 mA. Uses for detecting Active Empty state
 	ds2782_init.agingCapacity = 5414; 	// set battery capacity 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
+	ds2782_init.fullCapacity40 = 5414; 	// set full battery capacity at 40°C 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
+	ds2782_init.activeEmpty40 = 80;
+	ds2782_init.full3040_slope = 9;
+	ds2782_init.full2030_slope = 17;
+	ds2782_init.full1020_slope = 23;
+	ds2782_init.full0010_slope = 24;
+	ds2782_init.ae3040_slope = (uint8_t)-4;
+	ds2782_init.ae2030_slope = (uint8_t)-10;
+	ds2782_init.ae1020_slope = (uint8_t)-18;
+	ds2782_init.ae0010_slope = (uint8_t)-11;
+	ds2782_init.se3040_slope = (uint8_t)-10;
+	ds2782_init.se2030_slope = (uint8_t)-28;
+	ds2782_init.se1020_slope = (uint8_t)-29;
+	ds2782_init.se0010_slope = (uint8_t)-63;
 
 	// check battery parameters in DS2782 EEPROM
 	DS2782_recallDataEepromBlock(1); // recall data from EEPROM block 1 into shadow RAM
@@ -126,6 +142,31 @@ static void DS2782_init(void)
 	{
 		DS2782_writeRegister(AGING_CAP_MSB_MB, (uint8_t)((ds2782_init.agingCapacity & 0xFF00)>>8));
 		DS2782_writeRegister(AGING_CAP_LSB_MB, (uint8_t)(ds2782_init.agingCapacity & 0xFF));
+	}
+
+	fc40 = (uint16_t)((DS2782_readRegister(FULL_40_MSB_MB)<<8) | DS2782_readRegister(FULL_40_LSB_MB));
+	if(fc40 != ds2782_init.fullCapacity40)
+	{
+		DS2782_writeRegister(FULL_40_MSB_MB, (uint8_t)((ds2782_init.fullCapacity40 & 0xFF00)>>8));
+		DS2782_writeRegister(FULL_40_LSB_MB, (uint8_t)(ds2782_init.fullCapacity40 & 0xFF));
+	}
+
+	full3040_slope = DS2782_readRegister(FULL_3040_SLOPE_MB);
+	if(full3040_slope != ds2782_init.full3040_slope)
+	{
+		DS2782_writeRegister(AE40_MB, ds2782_init.activeEmpty40);
+		DS2782_writeRegister(FULL_3040_SLOPE_MB, ds2782_init.full3040_slope);
+		DS2782_writeRegister(FULL_2030_SLOPE_MB, ds2782_init.full2030_slope);
+		DS2782_writeRegister(FULL_1020_SLOPE_MB, ds2782_init.full1020_slope);
+		DS2782_writeRegister(FULL_0010_SLOPE_MB, ds2782_init.full0010_slope);
+		DS2782_writeRegister(AE_3040_SLOPE_MB, ds2782_init.ae3040_slope);
+		DS2782_writeRegister(AE_2030_SLOPE_MB, ds2782_init.ae2030_slope);
+		DS2782_writeRegister(AE_1020_SLOPE_MB, ds2782_init.ae1020_slope);
+		DS2782_writeRegister(AE_0010_SLOPE_MB, ds2782_init.ae0010_slope);
+		DS2782_writeRegister(SE_3040_SLOPE_MB, ds2782_init.se3040_slope);
+		DS2782_writeRegister(SE_2030_SLOPE_MB, ds2782_init.se2030_slope);
+		DS2782_writeRegister(SE_1020_SLOPE_MB, ds2782_init.se1020_slope);
+		DS2782_writeRegister(SE_0010_SLOPE_MB, ds2782_init.se0010_slope);
 	}
 	DS2782_copyDataEepromBlock(1); // copy data from shadow RAM into EEPROM block 1
 }

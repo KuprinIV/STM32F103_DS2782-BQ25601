@@ -54,10 +54,12 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void Load_66mA_Ctrl(uint8_t is_enabled);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LOAD_EN_Pin GPIO_PIN_3
+#define LOAD_EN_GPIO_Port GPIOA
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOB
 #define PWR_BTN_Pin GPIO_PIN_15

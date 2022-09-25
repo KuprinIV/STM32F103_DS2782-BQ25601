@@ -123,6 +123,20 @@ typedef struct
 	uint8_t VoltAE;
 	uint8_t CurrentAE;
 	uint16_t agingCapacity;
+	uint16_t fullCapacity40;
+	uint8_t activeEmpty40;
+	uint8_t full3040_slope;
+	uint8_t full2030_slope;
+	uint8_t full1020_slope;
+	uint8_t full0010_slope;
+	uint8_t ae3040_slope;
+	uint8_t ae2030_slope;
+	uint8_t ae1020_slope;
+	uint8_t ae0010_slope;
+	uint8_t se3040_slope;
+	uint8_t se2030_slope;
+	uint8_t se1020_slope;
+	uint8_t se0010_slope;
 }DS2782_InitParams;
 
 extern DS2782_Driver* ds2782_drv;
