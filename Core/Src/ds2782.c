@@ -87,7 +87,7 @@ static void DS2782_init(void)
 	ds2782_init.agingCapacity = 5414; 	// set battery capacity 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
 	// battery model characteristics got close to characteristics from DS2782 datasheet example
 	ds2782_init.fullCapacity40 = 5414; 	// set full battery capacity at 40°C 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
-	ds2782_init.activeEmpty40 = 8;		// 0,0078: fraction of full battery capacity at 40°C in 1/1024 units
+	ds2782_init.activeEmpty40 = 41;		// 0,04: fraction of full battery capacity at 40°C in 1/1024 units
 	ds2782_init.full3040_slope = 15;	// 915 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
 	ds2782_init.full2030_slope = 28;	// 1708 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
 	ds2782_init.full1020_slope = 38;	// 2318 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
