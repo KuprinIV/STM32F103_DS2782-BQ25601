@@ -74,100 +74,164 @@ static uint8_t DS2782_readRegister(uint8_t addr)
 static void DS2782_init(void)
 {
 	DS2782_InitParams ds2782_init;
-	uint8_t rsnsp = 0;
-	uint8_t vchg = 0;
-	uint8_t imin = 0;
-	uint8_t vae = 0;
-	uint8_t iae = 0;
-	uint16_t ac = 0;
-	uint16_t fc40 = 0;
-	uint8_t full3040_slope = 0;
+	uint8_t temp8 = 0;
+	uint16_t temp16 = 0;
 
 	// store battery parameters in data structure
-	ds2782_init.Rsense = 12; 			// set Rsns = 47 mOhm in 3,922 mOhm steps
+	ds2782_init.Rsense = 21; 			// set Rsns = 47,6 mOhm in mhOms
+	ds2782_init.rsgain = 1011;			// set Rsgain = 1011/2048 = 0,987 for adjust Rsns value close to 47 mOhm
 	ds2782_init.Vcharge = 215; 			// set Vchg = 4,2 V in 19,52 mV steps. Uses for detection full-charge state
 	ds2782_init.Imin = 75; 				// set Imin = 80 mA with Rsns = 47 mOhm. Uses for detection full-charge state
 	ds2782_init.VoltAE = 169; 			// set Active Empty voltage to 3,3 V in 19.52 mV steps. Uses for detecting Active Empty state
 	ds2782_init.CurrentAE = 12; 		// set Active Empty current 50 mA. Uses for detecting Active Empty state
 	ds2782_init.agingCapacity = 5414; 	// set battery capacity 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
+	// battery model characteristics got close to characteristics from DS2782 datasheet example
 	ds2782_init.fullCapacity40 = 5414; 	// set full battery capacity at 40°C 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
-	ds2782_init.activeEmpty40 = 80;
-	ds2782_init.full3040_slope = 9;
-	ds2782_init.full2030_slope = 17;
-	ds2782_init.full1020_slope = 23;
-	ds2782_init.full0010_slope = 24;
-	ds2782_init.ae3040_slope = (uint8_t)-4;
-	ds2782_init.ae2030_slope = (uint8_t)-10;
-	ds2782_init.ae1020_slope = (uint8_t)-18;
-	ds2782_init.ae0010_slope = (uint8_t)-11;
-	ds2782_init.se3040_slope = (uint8_t)-10;
-	ds2782_init.se2030_slope = (uint8_t)-28;
-	ds2782_init.se1020_slope = (uint8_t)-29;
-	ds2782_init.se0010_slope = (uint8_t)-63;
+	ds2782_init.activeEmpty40 = 8;		// 0,0078: fraction of full battery capacity at 40°C in 1/1024 units
+	ds2782_init.full3040_slope = 15;	// 915 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
+	ds2782_init.full2030_slope = 28;	// 1708 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
+	ds2782_init.full1020_slope = 38;	// 2318 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
+	ds2782_init.full0010_slope = 39;	// 2379 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
+	ds2782_init.ae3040_slope = 6;		// 366 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
+	ds2782_init.ae2030_slope = 16; 		// 976 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
+	ds2782_init.ae1020_slope = 30;		// 1830 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
+	ds2782_init.ae0010_slope = 18;		// 1098 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
+	ds2782_init.se3040_slope = 2;		// 122 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
+	ds2782_init.se2030_slope = 5; 		// 305 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
+	ds2782_init.se1020_slope = 5;		// 305 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
+	ds2782_init.se0010_slope = 10;		// 610 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
 
 	// check battery parameters in DS2782 EEPROM
 	DS2782_recallDataEepromBlock(1); // recall data from EEPROM block 1 into shadow RAM
-	rsnsp = DS2782_readRegister(RSNSP_MB);
-	if(rsnsp != ds2782_init.Rsense)
+	temp8 = DS2782_readRegister(RSNSP_MB);
+	if(temp8 != ds2782_init.Rsense)
 	{
 		DS2782_writeRegister(RSNSP_MB, ds2782_init.Rsense);
 	}
 
-	vchg = DS2782_readRegister(VCHG_MB);
-	if(vchg != ds2782_init.Vcharge)
+	temp16 = (uint16_t)((DS2782_readRegister(RSGAIN_MSB_MB)<<8) | DS2782_readRegister(RSGAIN_LSB_MB));
+	if(temp16 != ds2782_init.rsgain)
+	{
+		DS2782_writeRegister(RSGAIN_MSB_MB, (uint8_t)((ds2782_init.rsgain & 0xFF00)>>8));
+		DS2782_writeRegister(RSGAIN_LSB_MB, (uint8_t)(ds2782_init.rsgain & 0xFF));
+	}
+
+	temp8 = DS2782_readRegister(VCHG_MB);
+	if(temp8 != ds2782_init.Vcharge)
 	{
 		DS2782_writeRegister(VCHG_MB, ds2782_init.Vcharge);
 	}
 
-	imin = DS2782_readRegister(IMIN_MB);
-	if(imin != ds2782_init.Imin)
+	temp8 = DS2782_readRegister(IMIN_MB);
+	if(temp8 != ds2782_init.Imin)
 	{
 		DS2782_writeRegister(IMIN_MB, ds2782_init.Imin);
 	}
 
-	vae = DS2782_readRegister(VAE_MB);
-	if(vae != ds2782_init.VoltAE)
+	temp8 = DS2782_readRegister(VAE_MB);
+	if(temp8 != ds2782_init.VoltAE)
 	{
 		DS2782_writeRegister(VAE_MB, ds2782_init.VoltAE);
 	}
 
-	iae = DS2782_readRegister(IAE_MB);
-	if(iae != ds2782_init.CurrentAE)
+	temp8 = DS2782_readRegister(IAE_MB);
+	if(temp8 != ds2782_init.CurrentAE)
 	{
 		DS2782_writeRegister(IAE_MB, ds2782_init.CurrentAE);
 	}
 
-	ac = (uint16_t)((DS2782_readRegister(AGING_CAP_MSB_MB)<<8) | DS2782_readRegister(AGING_CAP_LSB_MB));
-	if(ac != ds2782_init.agingCapacity)
+	temp16 = (uint16_t)((DS2782_readRegister(AGING_CAP_MSB_MB)<<8) | DS2782_readRegister(AGING_CAP_LSB_MB));
+	if(temp16 != ds2782_init.agingCapacity)
 	{
 		DS2782_writeRegister(AGING_CAP_MSB_MB, (uint8_t)((ds2782_init.agingCapacity & 0xFF00)>>8));
 		DS2782_writeRegister(AGING_CAP_LSB_MB, (uint8_t)(ds2782_init.agingCapacity & 0xFF));
 	}
 
-	fc40 = (uint16_t)((DS2782_readRegister(FULL_40_MSB_MB)<<8) | DS2782_readRegister(FULL_40_LSB_MB));
-	if(fc40 != ds2782_init.fullCapacity40)
+	temp16 = (uint16_t)((DS2782_readRegister(FULL_40_MSB_MB)<<8) | DS2782_readRegister(FULL_40_LSB_MB));
+	if(temp16 != ds2782_init.fullCapacity40)
 	{
 		DS2782_writeRegister(FULL_40_MSB_MB, (uint8_t)((ds2782_init.fullCapacity40 & 0xFF00)>>8));
 		DS2782_writeRegister(FULL_40_LSB_MB, (uint8_t)(ds2782_init.fullCapacity40 & 0xFF));
 	}
 
-	full3040_slope = DS2782_readRegister(FULL_3040_SLOPE_MB);
-	if(full3040_slope != ds2782_init.full3040_slope)
+	temp8 = DS2782_readRegister(AE40_MB);
+	if(temp8 != ds2782_init.activeEmpty40)
 	{
 		DS2782_writeRegister(AE40_MB, ds2782_init.activeEmpty40);
+	}
+
+	temp8 = DS2782_readRegister(FULL_3040_SLOPE_MB);
+	if(temp8 != ds2782_init.full3040_slope)
+	{
 		DS2782_writeRegister(FULL_3040_SLOPE_MB, ds2782_init.full3040_slope);
+	}
+
+	temp8 = DS2782_readRegister(FULL_2030_SLOPE_MB);
+	if(temp8 != ds2782_init.full2030_slope)
+	{
 		DS2782_writeRegister(FULL_2030_SLOPE_MB, ds2782_init.full2030_slope);
+	}
+
+	temp8 = DS2782_readRegister(FULL_1020_SLOPE_MB);
+	if(temp8 != ds2782_init.full1020_slope)
+	{
 		DS2782_writeRegister(FULL_1020_SLOPE_MB, ds2782_init.full1020_slope);
+	}
+
+	temp8 = DS2782_readRegister(FULL_0010_SLOPE_MB);
+	if(temp8 != ds2782_init.full0010_slope)
+	{
 		DS2782_writeRegister(FULL_0010_SLOPE_MB, ds2782_init.full0010_slope);
+	}
+
+	temp8 = DS2782_readRegister(AE_3040_SLOPE_MB);
+	if(temp8 != ds2782_init.ae3040_slope)
+	{
 		DS2782_writeRegister(AE_3040_SLOPE_MB, ds2782_init.ae3040_slope);
+	}
+
+	temp8 = DS2782_readRegister(AE_2030_SLOPE_MB);
+	if(temp8 != ds2782_init.ae2030_slope)
+	{
 		DS2782_writeRegister(AE_2030_SLOPE_MB, ds2782_init.ae2030_slope);
+	}
+
+	temp8 = DS2782_readRegister(AE_1020_SLOPE_MB);
+	if(temp8 != ds2782_init.ae1020_slope)
+	{
 		DS2782_writeRegister(AE_1020_SLOPE_MB, ds2782_init.ae1020_slope);
+	}
+
+	temp8 = DS2782_readRegister(AE_0010_SLOPE_MB);
+	if(temp8 != ds2782_init.ae0010_slope)
+	{
 		DS2782_writeRegister(AE_0010_SLOPE_MB, ds2782_init.ae0010_slope);
+	}
+
+	temp8 = DS2782_readRegister(SE_3040_SLOPE_MB);
+	if(temp8 != ds2782_init.se3040_slope)
+	{
 		DS2782_writeRegister(SE_3040_SLOPE_MB, ds2782_init.se3040_slope);
+	}
+
+	temp8 = DS2782_readRegister(SE_2030_SLOPE_MB);
+	if(temp8 != ds2782_init.se2030_slope)
+	{
 		DS2782_writeRegister(SE_2030_SLOPE_MB, ds2782_init.se2030_slope);
+	}
+
+	temp8 = DS2782_readRegister(SE_1020_SLOPE_MB);
+	if(temp8 != ds2782_init.se1020_slope)
+	{
 		DS2782_writeRegister(SE_1020_SLOPE_MB, ds2782_init.se1020_slope);
+	}
+
+	temp8 = DS2782_readRegister(SE_0010_SLOPE_MB);
+	if(temp8 != ds2782_init.se0010_slope)
+	{
 		DS2782_writeRegister(SE_0010_SLOPE_MB, ds2782_init.se0010_slope);
 	}
+
 	DS2782_copyDataEepromBlock(1); // copy data from shadow RAM into EEPROM block 1
 }
 
