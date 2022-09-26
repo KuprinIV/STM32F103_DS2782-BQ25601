@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "bq25601.h"
 #include "ds2782.h"
+#include "queue.h"
 #include "usbd_custom_hid_if.h"
 /* USER CODE END Includes */
 
@@ -50,9 +51,6 @@ TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN PV */
 volatile uint8_t isUpdateEvent = 0;
 volatile uint8_t ae_cnt_div = 0;
-volatile uint8_t battery_status_cnt_div = 0;
-uint8_t bat_status_report[6] = {0};
-uint8_t ds2782_status_report[2] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,6 +60,8 @@ static void MX_I2C1_Init(void);
 static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 static void checkPowerButton(void);
+static void processHostCommands(uint8_t* report_data);
+static uint8_t sendStatusTickHandle(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -76,8 +76,6 @@ static void checkPowerButton(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int16_t batteryVoltage = 0;
-	int16_t batteryCurrent = 0;
 	uint8_t pg_state_prev = 0;
   /* USER CODE END 1 */
 
@@ -122,45 +120,31 @@ int main(void)
 	  if(isUpdateEvent)
 	  {
 		  isUpdateEvent = 0;
+
+		  // check power button state
 		  checkPowerButton();
+
 		  // if active empty state and no charge input make power off
 		  if((ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG) && (PG_GPIO_Port->IDR & PG_Pin))
 		  {
 			  bq25601_drv->PowerOff();
 		  }
+
 		  // detect active empty state
 		  if((ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG) && ae_cnt_div == 3)
 		  {
 			  LED_GPIO_Port->ODR ^= LED_Pin;
 		  }
 		  ae_cnt_div = (ae_cnt_div+1) & 0x03;
-		  // send battery and DS2782 status data via USB
-		  if(battery_status_cnt_div < 20)
+
+		  /** send battery and DS2782 status data via USB. If status wasn't need to sent and commands queue isn't empty process
+		   * Host commands */
+		  if(!sendStatusTickHandle() && !commands_queue->IsEmpty())
 		  {
-			  if(battery_status_cnt_div == 10)
-			  {
-				  ds2782_status_report[0] = 0x02;
-				  ds2782_status_report[1] = ds2782_drv->ReadStatus();
-				  USBD_CUSTOM_HID_SendReport_FS(ds2782_status_report, sizeof(ds2782_status_report));
-			  }
-			  battery_status_cnt_div++;
-		  }
-		  else
-		  {
-			  battery_status_cnt_div = 0;
-			  // read battery voltage and current values
-			  batteryVoltage = ds2782_drv->ReadBatteryVoltage();
-			  batteryCurrent = ds2782_drv->ReadBatteryCurrent();
-			  // fill battery status report data
-			  bat_status_report[0] = 0x01; // report ID
-			  bat_status_report[1] = (uint8_t)(batteryVoltage>>8);
-			  bat_status_report[2] = (uint8_t)(batteryVoltage & 0xFF);
-			  bat_status_report[3] = (uint8_t)(batteryCurrent>>8);
-			  bat_status_report[4] = (uint8_t)(batteryCurrent & 0xFF);
-			  bat_status_report[5] = ds2782_drv->ReadActiveRelativeCapacity();
-			  USBD_CUSTOM_HID_SendReport_FS(bat_status_report, sizeof(bat_status_report));
+			  processHostCommands(commands_queue->Poll());
 		  }
 
+		  // set load 66 mA state in depend from power good status
 		  if(!(PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 0)
 		  {
 			  pg_state_prev = 1;
@@ -365,10 +349,15 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief Check power button state. If button was pressed more than 1 s make power off
+ * @param: None
+ * @return: None
+ */
 static void checkPowerButton(void)
 {
-  static uint8_t powerOffCntr = 0;
-  static uint8_t isPwrBtnPressed = 0;
+  static uint8_t powerOffCntr;
+  static uint8_t isPwrBtnPressed;
 
   if((PWR_BTN_GPIO_Port->IDR & PWR_BTN_Pin) == 0 && !isPwrBtnPressed)
   {
@@ -390,6 +379,108 @@ static void checkPowerButton(void)
   }
 }
 
+/**
+ * @brief Process commands, received via HID reports from Host
+ * @param: report_data - HID report data with command
+ * @return: None
+ */
+static void processHostCommands(uint8_t* report_data)
+{
+	uint8_t outputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
+	BQ25601_Status bq25601_status;
+	switch(report_data[0])
+	{
+		case 0x04: // read EEPROM block 1 command
+			outputData[0] = 0x05;
+			ds2782_drv->ReadEepromBlock1(report_data[1], outputData+1, report_data[2]);
+			USBD_CUSTOM_HID_SendReport_FS(outputData, 33);
+			break;
+
+		case 0x06: // write DS2782 EEPROM block 1 data
+			ds2782_drv->WriteEepromBlock1(report_data[1], report_data+3, report_data[2]);
+			break;
+
+		case 0x09: // commands report
+			// set BQ25601 charger enabled state
+			bq25601_drv->SetChargerEnabled(report_data[1]);
+			// check lock DS2782 EEPROM block 1 command
+			if(report_data[2] == 1)
+			{
+//				ds2782_drv->LockEepromBlock(1);
+			}
+			// get DS2782 EEPROM block 1 lock status
+			if(report_data[3] == 1)
+			{
+				outputData[0] = 0x03;
+				outputData[1] = ds2782_drv->IsEepromBlockLocked(1);
+				USBD_CUSTOM_HID_SendReport_FS(outputData, 2);
+			}
+			// get BQ25601 charger state
+			if(report_data[4] == 1)
+			{
+				outputData[0] = 0x07;
+				bq25601_drv->GetChargerState(&bq25601_status);
+				memcpy(outputData+1, &bq25601_status, sizeof(bq25601_status));
+				USBD_CUSTOM_HID_SendReport_FS(outputData, 5);
+			}
+			// load 66 mA control
+			Load_66mA_Ctrl(report_data[5] & 0x01);
+			break;
+
+		default:
+			break;
+	}
+}
+
+/**
+ * @brief Send DS2782 status and battery parameters
+ * @param: None
+ * @return: 0 - data wasn't sent, 1 - data was sent
+ */
+static uint8_t sendStatusTickHandle(void)
+{
+	static uint8_t battery_status_cnt_div;
+	uint8_t bat_status_report[6] = {0};
+	uint8_t ds2782_status_report[2] = {0};
+	uint8_t result = 0;
+	int16_t batteryVoltage = 0;
+	int16_t batteryCurrent = 0;
+
+	if(battery_status_cnt_div < 20)
+	{
+	  if(battery_status_cnt_div == 10)
+	  {
+		  ds2782_status_report[0] = 0x02;
+		  ds2782_status_report[1] = ds2782_drv->ReadStatus();
+		  USBD_CUSTOM_HID_SendReport_FS(ds2782_status_report, sizeof(ds2782_status_report));
+		  result = 1;
+	  }
+	  battery_status_cnt_div++;
+	}
+	else
+	{
+	  battery_status_cnt_div = 0;
+	  // read battery voltage and current values
+	  batteryVoltage = ds2782_drv->ReadBatteryVoltage();
+	  batteryCurrent = ds2782_drv->ReadBatteryCurrent();
+	  // fill battery status report data
+	  bat_status_report[0] = 0x01; // report ID
+	  bat_status_report[1] = (uint8_t)(batteryVoltage>>8);
+	  bat_status_report[2] = (uint8_t)(batteryVoltage & 0xFF);
+	  bat_status_report[3] = (uint8_t)(batteryCurrent>>8);
+	  bat_status_report[4] = (uint8_t)(batteryCurrent & 0xFF);
+	  bat_status_report[5] = ds2782_drv->ReadActiveRelativeCapacity();
+	  USBD_CUSTOM_HID_SendReport_FS(bat_status_report, sizeof(bat_status_report));
+	  result = 1;
+	}
+	return result;
+}
+
+/**
+ * @brief Load 66 mA control
+ * @param: is_enabled: 0 - load isn't connected, 1 - load is connected
+ * @return: None
+ */
 void Load_66mA_Ctrl(uint8_t is_enabled)
 {
 	if(is_enabled)
@@ -402,6 +493,11 @@ void Load_66mA_Ctrl(uint8_t is_enabled)
 	}
 }
 
+/**
+  * @brief  Period elapsed callback in non-blocking mode
+  * @param  htim TIM handle
+  * @retval None
+  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	isUpdateEvent = 1;

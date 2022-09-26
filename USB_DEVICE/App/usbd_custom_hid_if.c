@@ -26,6 +26,7 @@
 #include "bq25601.h"
 #include "ds2782.h"
 #include "main.h"
+#include "queue.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -280,49 +281,9 @@ uint8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len)
 static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state)
 {
   /* USER CODE BEGIN 6 */
-	uint8_t inputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
-	uint8_t outputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
-	BQ25601_Status bq25601_status;
 	USBD_CUSTOM_HID_HandleTypeDef  *hhid = (USBD_CUSTOM_HID_HandleTypeDef*)hUsbDeviceFS.pClassData;
-	memcpy(inputData, hhid->Report_buf, USBD_CUSTOMHID_OUTREPORT_BUF_SIZE);
-	switch(event_idx)
-	{
-		case 0x04:
-			outputData[0] = 0x05;
-			ds2782_drv->ReadEepromBlock1(inputData[1], outputData+1, inputData[2]);
-			USBD_CUSTOM_HID_SendReport_FS(outputData, 33);
-			break;
-
-		case 0x06: // write DS2782 EEPROM block 1 data
-			ds2782_drv->WriteEepromBlock1(inputData[1], inputData+3, inputData[2]);
-			break;
-
-		case 0x09: // set BQ25601 charger enabled state
-			bq25601_drv->SetChargerEnabled(inputData[1]);
-			if(inputData[2] == 1)
-			{
-				ds2782_drv->LockEepromBlock(1);
-			}
-			if(inputData[3] == 1)
-			{
-				outputData[0] = 0x03;
-				outputData[1] = ds2782_drv->IsEepromBlockLocked(1);
-				USBD_CUSTOM_HID_SendReport_FS(outputData, 2);
-			}
-			if(inputData[4] == 1)
-			{
-				outputData[0] = 0x07;
-				bq25601_drv->GetChargerState(&bq25601_status);
-				memcpy(outputData+1, &bq25601_status, sizeof(bq25601_status));
-				USBD_CUSTOM_HID_SendReport_FS(outputData, 5);
-			}
-			Load_66mA_Ctrl(inputData[5] & 0x01);
-			break;
-
-		default:
-			break;
-	}
-  return (USBD_OK);
+	commands_queue->Insert(hhid->Report_buf);
+	return (USBD_OK);
   /* USER CODE END 6 */
 }
 

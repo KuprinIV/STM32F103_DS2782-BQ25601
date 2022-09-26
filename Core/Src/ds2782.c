@@ -77,29 +77,32 @@ static void DS2782_init(void)
 	uint8_t temp8 = 0;
 	uint16_t temp16 = 0;
 
+	if(DS2782_isEepromBlockLocked(1)) return;
+
 	// store battery parameters in data structure
-	ds2782_init.Rsense = 21; 			// set Rsns = 47,6 mOhm in mhOms
-	ds2782_init.rsgain = 1011;			// set Rsgain = 1011/2048 = 0,987 for adjust Rsns value close to 47 mOhm
-	ds2782_init.Vcharge = 215; 			// set Vchg = 4,2 V in 19,52 mV steps. Uses for detection full-charge state
-	ds2782_init.Imin = 75; 				// set Imin = 80 mA with Rsns = 47 mOhm. Uses for detection full-charge state
-	ds2782_init.VoltAE = 169; 			// set Active Empty voltage to 3,3 V in 19.52 mV steps. Uses for detecting Active Empty state
-	ds2782_init.CurrentAE = 12; 		// set Active Empty current 50 mA. Uses for detecting Active Empty state
-	ds2782_init.agingCapacity = 5414; 	// set battery capacity 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
+	ds2782_init.Rsense = 21; 				// set Rsns = 47,6 mOhm in mhOms
+	ds2782_init.rsgain = 1011;				// set Rsgain = 1011/2048 = 0,987 for adjust Rsns value close to 47 mOhm
+	ds2782_init.Vcharge = 215; 				// set Vchg = 4,2 V in 19,52 mV steps. Uses for detection full-charge state
+	ds2782_init.Imin = 75; 					// set Imin = 80 mA with Rsns = 47 mOhm. Uses for detection full-charge state
+	ds2782_init.VoltAE = 169; 				// set Active Empty voltage to 3,3 V in 19.52 mV steps. Uses for detecting Active Empty state
+	ds2782_init.CurrentAE = 12; 			// set Active Empty current 50 mA. Uses for detecting Active Empty state
+	ds2782_init.agingCapacity = 5414; 		// set battery capacity 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
+	ds2782_init.control_register = 0x40;	// enable transition in Sleep mode, if VIN < Vsleep AND SDA, SCL stable at either logic level for Tsleep
 	// battery model characteristics got close to characteristics from DS2782 datasheet example
-	ds2782_init.fullCapacity40 = 5414; 	// set full battery capacity at 40°C 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
-	ds2782_init.activeEmpty40 = 41;		// 0,04: fraction of full battery capacity at 40°C in 1/1024 units
-	ds2782_init.full3040_slope = 15;	// 915 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
-	ds2782_init.full2030_slope = 28;	// 1708 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
-	ds2782_init.full1020_slope = 38;	// 2318 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
-	ds2782_init.full0010_slope = 39;	// 2379 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
-	ds2782_init.ae3040_slope = 6;		// 366 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
-	ds2782_init.ae2030_slope = 16; 		// 976 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
-	ds2782_init.ae1020_slope = 30;		// 1830 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
-	ds2782_init.ae0010_slope = 18;		// 1098 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
-	ds2782_init.se3040_slope = 2;		// 122 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
-	ds2782_init.se2030_slope = 5; 		// 305 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
-	ds2782_init.se1020_slope = 5;		// 305 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
-	ds2782_init.se0010_slope = 10;		// 610 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
+	ds2782_init.fullCapacity40 = 5414; 		// set full battery capacity at 40°C 33,84 mVh in 6,25 uVh steps (equals 720 mA with Rsns = 47 mOhm)
+	ds2782_init.activeEmpty40 = 41;			// 0,04: fraction of full battery capacity at 40°C in 1/1024 units
+	ds2782_init.full3040_slope = 15;		// 915 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
+	ds2782_init.full2030_slope = 28;		// 1708 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
+	ds2782_init.full1020_slope = 38;		// 2318 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
+	ds2782_init.full0010_slope = 39;		// 2379 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
+	ds2782_init.ae3040_slope = 6;			// 366 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
+	ds2782_init.ae2030_slope = 16; 			// 976 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
+	ds2782_init.ae1020_slope = 30;			// 1830 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
+	ds2782_init.ae0010_slope = 18;			// 1098 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
+	ds2782_init.se3040_slope = 2;			// 122 ppm/°C: line slope between 30 and 40 °C in 61 ppm/°C units
+	ds2782_init.se2030_slope = 5; 			// 305 ppm/°C: line slope between 20 and 30 °C in 61 ppm/°C units
+	ds2782_init.se1020_slope = 5;			// 305 ppm/°C: line slope between 10 and 20 °C in 61 ppm/°C units
+	ds2782_init.se0010_slope = 10;			// 610 ppm/°C: line slope between 0 and 10 °C in 61 ppm/°C units
 
 	// check battery parameters in DS2782 EEPROM
 	DS2782_recallDataEepromBlock(1); // recall data from EEPROM block 1 into shadow RAM
@@ -145,6 +148,12 @@ static void DS2782_init(void)
 	{
 		DS2782_writeRegister(AGING_CAP_MSB_MB, (uint8_t)((ds2782_init.agingCapacity & 0xFF00)>>8));
 		DS2782_writeRegister(AGING_CAP_LSB_MB, (uint8_t)(ds2782_init.agingCapacity & 0xFF));
+	}
+
+	temp8 = DS2782_readRegister(CONTROL_REG_MB);
+	if(temp8 != ds2782_init.control_register)
+	{
+		DS2782_writeRegister(CONTROL_REG_MB, ds2782_init.control_register);
 	}
 
 	temp16 = (uint16_t)((DS2782_readRegister(FULL_40_MSB_MB)<<8) | DS2782_readRegister(FULL_40_LSB_MB));

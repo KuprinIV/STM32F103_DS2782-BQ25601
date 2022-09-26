@@ -138,6 +138,7 @@ typedef struct
 	uint8_t se1020_slope;
 	uint8_t se0010_slope;
 	uint16_t rsgain;
+	uint8_t control_register;
 }DS2782_InitParams;
 
 extern DS2782_Driver* ds2782_drv;
