@@ -51,6 +51,7 @@ TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN PV */
 volatile uint8_t isUpdateEvent = 0;
 volatile uint8_t ae_cnt_div = 0;
+volatile uint8_t isLoadEnViaUsb = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,6 +78,8 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	uint8_t pg_state_prev = 0;
+	BQ25601_Status bq25601_status;
+	uint8_t ae_pwr_off_cntr = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -125,9 +128,17 @@ int main(void)
 		  checkPowerButton();
 
 		  // if active empty state and no charge input make power off
-		  if((ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG) && (PG_GPIO_Port->IDR & PG_Pin))
+		  bq25601_drv->GetChargerState(&bq25601_status);
+		  if((ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG) && (bq25601_status.vbus_status == NO_VBUS_INPUT))
 		  {
-			  bq25601_drv->PowerOff();
+			  if(ae_pwr_off_cntr++ > 5)
+			  {
+				  bq25601_drv->PowerOff();
+			  }
+		  }
+		  else
+		  {
+			  ae_pwr_off_cntr = 0;
 		  }
 
 		  // detect active empty state
@@ -144,16 +155,19 @@ int main(void)
 			  processHostCommands(commands_queue->Poll());
 		  }
 
-		  // set load 66 mA state in depend from power good status
-		  if(!(PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 0)
+		  // set load 66 mA state in depend from power good status, if it isn't enabled via USB
+		  if(!isLoadEnViaUsb)
 		  {
-			  pg_state_prev = 1;
-			  Load_66mA_Ctrl(0);
-		  }
-		  else if((PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 1)
-		  {
-			  pg_state_prev = 0;
-			  Load_66mA_Ctrl(1);
+			  if(!(PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 0)
+			  {
+				  pg_state_prev = 1;
+				  Load_66mA_Ctrl(0);
+			  }
+			  else if((PG_GPIO_Port->IDR & PG_Pin) && pg_state_prev == 1)
+			  {
+				  pg_state_prev = 0;
+				  Load_66mA_Ctrl(1);
+			  }
 		  }
 	  }
   }
@@ -388,6 +402,7 @@ static void processHostCommands(uint8_t* report_data)
 {
 	uint8_t outputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
 	BQ25601_Status bq25601_status;
+
 	switch(report_data[0])
 	{
 		case 0x04: // read EEPROM block 1 command
@@ -424,7 +439,23 @@ static void processHostCommands(uint8_t* report_data)
 				USBD_CUSTOM_HID_SendReport_FS(outputData, 5);
 			}
 			// load 66 mA control
+			isLoadEnViaUsb = report_data[5] & 0x01;
 			Load_66mA_Ctrl(report_data[5] & 0x01);
+			break;
+
+		case 0x0A:
+			outputData[0] = 0x0B;
+			if(report_data[1] == 0)
+			{
+				outputData[1] = 0;
+				outputData[2] = ds2782_drv->ReadRegister8b(report_data[2]);
+			}
+			else
+			{
+				outputData[1] = ds2782_drv->ReadRegister8b(report_data[1]);
+				outputData[2] = ds2782_drv->ReadRegister8b(report_data[2]);
+			}
+			USBD_CUSTOM_HID_SendReport_FS(outputData, 3);
 			break;
 
 		default:

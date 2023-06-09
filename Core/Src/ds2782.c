@@ -11,6 +11,7 @@ static void DS2782_readEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t l
 static void DS2782_writeEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length);
 static void DS2782_lockEepromBlock(uint8_t block_num);
 static uint8_t DS2782_isEepromBlockLocked(uint8_t block_num);
+static uint8_t DS2782_ReadRegister8b(uint8_t addr);
 
 // inner functions
 static void DS2782_writeRegister(uint8_t addr, uint8_t value);
@@ -30,6 +31,7 @@ DS2782_Driver ds2782_driver = {
 		DS2782_writeEepromBlock1,
 		DS2782_lockEepromBlock,
 		DS2782_isEepromBlockLocked,
+		DS2782_ReadRegister8b,
 };
 DS2782_Driver* ds2782_drv = &ds2782_driver;
 
@@ -387,6 +389,11 @@ static void DS2782_lockEepromBlock(uint8_t block_num)
 	}
 
 	HAL_Delay(5); // wait command executing
+}
+
+static uint8_t DS2782_ReadRegister8b(uint8_t addr)
+{
+	return DS2782_readRegister(addr);
 }
 
 /**

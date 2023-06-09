@@ -182,6 +182,24 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
 		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
 		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
 		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
+
+		/** Read DS2782 register data: (bytes: 0 - report ID (0x0A), 1 - MSB address, 2 - LSB address */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x0A,               	   //   REPORT_ID (10)
+		0x95, 0x02,                    //   REPORT_COUNT (2)
+		0x75, 0x08,                    //   REPORT_SIZE (8)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
+
+		/** Send DS2782 register data: (bytes: 0 - report ID (0x0A), 1 - MSB data, 2 - LSB data */
+		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
+		0x85, 0x0B,               	   //   REPORT_ID (11)
+		0x95, 0x02,                    //   REPORT_COUNT (2)
+		0x75, 0x08,                    //   REPORT_SIZE (8)
+		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
+		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
   /* USER CODE END 0 */
   0xC0    /*     END_COLLECTION	             */
 };
