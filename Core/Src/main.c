@@ -146,6 +146,10 @@ int main(void)
 		  {
 			  LED_GPIO_Port->ODR ^= LED_Pin;
 		  }
+		  else if(!(ds2782_drv->ReadStatus() & ACTIVE_EMPTY_FLAG))
+		  {
+			  LED_GPIO_Port->ODR |= LED_Pin;
+		  }
 		  ae_cnt_div = (ae_cnt_div+1) & 0x03;
 
 		  /** send battery and DS2782 status data via USB. If status wasn't need to sent and commands queue isn't empty process
@@ -395,71 +399,82 @@ static void checkPowerButton(void)
 
 /**
  * @brief Process commands, received via HID reports from Host
- * @param: report_data - HID report data with command
+ * @param: report_data - HID report data with command (0 - report ID, 1 - command ID, 2 - command data length, 3...36 - command data)
  * @return: None
  */
 static void processHostCommands(uint8_t* report_data)
 {
-	uint8_t outputData[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE]= {0};
+	uint8_t outputData[USBD_CUSTOMHID_INREPORT_BUF_SIZE]= {0};
 	BQ25601_Status bq25601_status;
+	BQ25601_FaultType charger_fault_state;
 
-	switch(report_data[0])
+	if(report_data[0] == COMMANDS_ID)
 	{
-		case 0x04: // read EEPROM block 1 command
-			outputData[0] = 0x05;
-			ds2782_drv->ReadEepromBlock1(report_data[1], outputData+1, report_data[2]);
-			USBD_CUSTOM_HID_SendReport_FS(outputData, 33);
-			break;
+		switch(report_data[1])
+		{
+			case READ_DS2782_REGISTERS_DATA:
+				outputData[0] = COMMANDS_RESPONSE_ID;
+				outputData[1] = READ_DS2782_REGISTERS_DATA;
+				outputData[2] = report_data[4];
 
-		case 0x06: // write DS2782 EEPROM block 1 data
-			ds2782_drv->WriteEepromBlock1(report_data[1], report_data+3, report_data[2]);
-			break;
+				ds2782_drv->ReadRegistersMap(report_data[3], outputData+3, report_data[4]);
+				USBD_CUSTOM_HID_SendReport_FS(outputData, report_data[4]+3);
+				break;
 
-		case 0x09: // commands report
-			// set BQ25601 charger enabled state
-			bq25601_drv->SetChargerEnabled(report_data[1]);
-			// check lock DS2782 EEPROM block 1 command
-			if(report_data[2] == 1)
-			{
-//				ds2782_drv->LockEepromBlock(1);
-			}
-			// get DS2782 EEPROM block 1 lock status
-			if(report_data[3] == 1)
-			{
-				outputData[0] = 0x03;
-				outputData[1] = ds2782_drv->IsEepromBlockLocked(1);
-				USBD_CUSTOM_HID_SendReport_FS(outputData, 2);
-			}
-			// get BQ25601 charger state
-			if(report_data[4] == 1)
-			{
-				outputData[0] = 0x07;
+			case READ_DS2782_EEPROM_DATA:
+				outputData[0] = COMMANDS_RESPONSE_ID;
+				outputData[1] = READ_DS2782_EEPROM_DATA;
+				outputData[2] = report_data[5];
+				ds2782_drv->ReadEepromBlock(report_data[3], report_data[4], outputData+3, report_data[5]);
+				USBD_CUSTOM_HID_SendReport_FS(outputData, report_data[5]+3);
+				break;
+
+			case WRITE_DS2782_EEPROM_DATA:
+				ds2782_drv->WriteEepromBlock(report_data[3], report_data[4], report_data+5, report_data[2]-2);
+				break;
+
+			case LOCK_DS2782_EEPROM_BLOCK: // disable lock DS2782 EEPROM function for debug purposes
+				//ds2782_drv->LockEepromBlock(report_data[3] & 0x01);
+				break;
+
+			case READ_DS2782_EEPROM_LOCK_STATUS:
+				outputData[0] = COMMANDS_RESPONSE_ID;
+				outputData[1] = READ_DS2782_EEPROM_LOCK_STATUS;
+				outputData[2] = 1;
+				outputData[3] = ds2782_drv->IsEepromBlockLocked(report_data[3] & 0x01);
+				USBD_CUSTOM_HID_SendReport_FS(outputData, 4);
+				break;
+
+			case READ_BQ25601_STATUS:
+				outputData[0] = COMMANDS_RESPONSE_ID;
+				outputData[1] = READ_BQ25601_STATUS;
+				outputData[2] = sizeof(bq25601_status);
 				bq25601_drv->GetChargerState(&bq25601_status);
-				memcpy(outputData+1, &bq25601_status, sizeof(bq25601_status));
-				USBD_CUSTOM_HID_SendReport_FS(outputData, 5);
-			}
-			// load 66 mA control
-			isLoadEnViaUsb = report_data[5] & 0x01;
-			Load_66mA_Ctrl(report_data[5] & 0x01);
-			break;
+				memcpy(outputData+3, &bq25601_status, sizeof(bq25601_status));
+				USBD_CUSTOM_HID_SendReport_FS(outputData, sizeof(bq25601_status)+3);
+				break;
 
-		case 0x0A:
-			outputData[0] = 0x0B;
-			if(report_data[1] == 0)
-			{
-				outputData[1] = 0;
-				outputData[2] = ds2782_drv->ReadRegister8b(report_data[2]);
-			}
-			else
-			{
-				outputData[1] = ds2782_drv->ReadRegister8b(report_data[1]);
-				outputData[2] = ds2782_drv->ReadRegister8b(report_data[2]);
-			}
-			USBD_CUSTOM_HID_SendReport_FS(outputData, 3);
-			break;
+			case READ_BQ25601_FAULTS:
+				outputData[0] = COMMANDS_RESPONSE_ID;
+				outputData[1] = READ_BQ25601_FAULTS;
+				outputData[2] = sizeof(charger_fault_state);
+				bq25601_drv->GetChargerFault(&charger_fault_state);
+				memcpy(outputData+3, &charger_fault_state, sizeof(charger_fault_state));
+				USBD_CUSTOM_HID_SendReport_FS(outputData, sizeof(charger_fault_state)+3);
+				break;
 
-		default:
-			break;
+			case BQ25601_CHG_CTRL:
+				bq25601_drv->SetChargerEnabled(report_data[3] & 0x01);
+				break;
+
+			case LOAD_66MA_CTRL:
+				isLoadEnViaUsb = report_data[3] & 0x01;
+				Load_66mA_Ctrl(report_data[3] & 0x01);
+				break;
+
+			default:
+				break;
+		}
 	}
 }
 
@@ -471,37 +486,36 @@ static void processHostCommands(uint8_t* report_data)
 static uint8_t sendStatusTickHandle(void)
 {
 	static uint8_t battery_status_cnt_div;
-	uint8_t bat_status_report[6] = {0};
-	uint8_t ds2782_status_report[2] = {0};
+	uint8_t outputData[USBD_CUSTOMHID_INREPORT_BUF_SIZE]= {0};
 	uint8_t result = 0;
 	int16_t batteryVoltage = 0;
 	int16_t batteryCurrent = 0;
 
 	if(battery_status_cnt_div < 20)
 	{
-	  if(battery_status_cnt_div == 10)
-	  {
-		  ds2782_status_report[0] = 0x02;
-		  ds2782_status_report[1] = ds2782_drv->ReadStatus();
-		  USBD_CUSTOM_HID_SendReport_FS(ds2782_status_report, sizeof(ds2782_status_report));
-		  result = 1;
-	  }
 	  battery_status_cnt_div++;
 	}
 	else
 	{
 	  battery_status_cnt_div = 0;
+
+	  outputData[0] = COMMANDS_RESPONSE_ID;
+	  outputData[1] = READ_DS2782_REGISTERS_DATA;
+	  outputData[2] = 32;
+	  // read DS2782 registers map
+	  ds2782_drv->ReadRegistersMap(STATUS_REG, outputData+3, 31);
 	  // read battery voltage and current values
 	  batteryVoltage = ds2782_drv->ReadBatteryVoltage();
 	  batteryCurrent = ds2782_drv->ReadBatteryCurrent();
-	  // fill battery status report data
-	  bat_status_report[0] = 0x01; // report ID
-	  bat_status_report[1] = (uint8_t)(batteryVoltage>>8);
-	  bat_status_report[2] = (uint8_t)(batteryVoltage & 0xFF);
-	  bat_status_report[3] = (uint8_t)(batteryCurrent>>8);
-	  bat_status_report[4] = (uint8_t)(batteryCurrent & 0xFF);
-	  bat_status_report[5] = ds2782_drv->ReadActiveRelativeCapacity();
-	  USBD_CUSTOM_HID_SendReport_FS(bat_status_report, sizeof(bat_status_report));
+	  // change battery voltage and current data
+	  outputData[VOLT_MSB_REG+3-STATUS_REG] = (uint8_t)(batteryVoltage>>8);
+	  outputData[VOLT_LSB_REG+3-STATUS_REG] = (uint8_t)(batteryVoltage & 0xFF);
+	  outputData[CURRENT_MSB_REG+3-STATUS_REG] = (uint8_t)(batteryCurrent>>8);
+	  outputData[CURRENT_LSB_REG+3-STATUS_REG] = (uint8_t)(batteryCurrent & 0xFF);
+	  // read RSNSP value
+	  outputData[35] = ds2782_drv->ReadRegister8b(RSNSP_MB);
+
+	  USBD_CUSTOM_HID_SendReport_FS(outputData, sizeof(outputData));
 	  result = 1;
 	}
 	return result;

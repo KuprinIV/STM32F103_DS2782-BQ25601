@@ -109,11 +109,12 @@ typedef struct
 	uint8_t (*ReadActiveRelativeCapacity)(void);
 	uint8_t (*ReadStandbyRelativeCapacity)(void);
 	uint8_t (*ReadStatus)(void);
-	void (*ReadEepromBlock1)(uint8_t start_addr, uint8_t* data, uint8_t length);
-	void (*WriteEepromBlock1)(uint8_t start_addr, uint8_t* data, uint8_t length);
+	void (*ReadEepromBlock)(uint8_t block_num, uint8_t start_addr, uint8_t* data, uint8_t length);
+	void (*WriteEepromBlock)(uint8_t block_num, uint8_t start_addr, uint8_t* data, uint8_t length);
 	void (*LockEepromBlock)(uint8_t block_num);
 	uint8_t (*IsEepromBlockLocked)(uint8_t block_num);
 	uint8_t (*ReadRegister8b)(uint8_t addr);
+	void (*ReadRegistersMap)(uint8_t start_addr, uint8_t* data, uint8_t length);
 }DS2782_Driver;
 
 typedef struct

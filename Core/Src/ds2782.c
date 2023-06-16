@@ -7,11 +7,12 @@ static int16_t DS2782_readBatteryCurrent(void);
 static uint8_t DS2782_readActiveRelativeCapacity(void);
 static uint8_t DS2782_readStandbyRelativeCapacity(void);
 static uint8_t DS2782_readStatus(void);
-static void DS2782_readEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length);
-static void DS2782_writeEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length);
+static void DS2782_readEepromBlock(uint8_t block_num, uint8_t start_addr, uint8_t* data, uint8_t length);
+static void DS2782_writeEepromBlock(uint8_t block_num, uint8_t start_addr, uint8_t* data, uint8_t length);
 static void DS2782_lockEepromBlock(uint8_t block_num);
 static uint8_t DS2782_isEepromBlockLocked(uint8_t block_num);
 static uint8_t DS2782_ReadRegister8b(uint8_t addr);
+static void DS2782_ReadRegistersMap(uint8_t start_addr, uint8_t* data, uint8_t length);
 
 // inner functions
 static void DS2782_writeRegister(uint8_t addr, uint8_t value);
@@ -27,11 +28,12 @@ DS2782_Driver ds2782_driver = {
 		DS2782_readActiveRelativeCapacity,
 		DS2782_readStandbyRelativeCapacity,
 		DS2782_readStatus,
-		DS2782_readEepromBlock1,
-		DS2782_writeEepromBlock1,
+		DS2782_readEepromBlock,
+		DS2782_writeEepromBlock,
 		DS2782_lockEepromBlock,
 		DS2782_isEepromBlockLocked,
 		DS2782_ReadRegister8b,
+		DS2782_ReadRegistersMap,
 };
 DS2782_Driver* ds2782_drv = &ds2782_driver;
 
@@ -273,11 +275,13 @@ static int16_t DS2782_readBatteryCurrent(void)
 	int32_t temp = 0;
 	uint8_t current_msb_reg = DS2782_readRegister(CURRENT_MSB_REG);
 	uint8_t current_lsb_reg = DS2782_readRegister(CURRENT_LSB_REG);
+	uint8_t rsnsp = DS2782_readRegister(RSNSP_MB);
+	uint16_t rsgain = (uint16_t)((DS2782_readRegister(RSGAIN_MSB_MB)<<8)|(DS2782_readRegister(RSGAIN_LSB_MB)));
 
 	current_data_code = (int16_t)((current_msb_reg<<8)|(current_lsb_reg));
 
-	// convert value to mA. 51200 - voltage range (51,2 mV) on Rs * 1000, 47 - Rs value in mOhms
-	temp = (int32_t)(current_data_code*51200/47)>>15;
+	// convert value to mA
+	temp = (int32_t)(current_data_code*rsnsp*1024/(10*rsgain))>>6;
 	return temp;
 }
 
@@ -312,19 +316,35 @@ static uint8_t DS2782_readStatus(void)
 }
 
 /**
- * @brief Read data from EEPROM block 1 of DS2782
+ * @brief Read data from EEPROM block of DS2782
+ * @param: block_num - EEPROM block number (0 or 1)
  * @param: start_addr - EEPROM start address
  * @param: data - output EEPROM data
  * @param: length - data array length
  * @return: None
  */
-static void DS2782_readEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length)
+static void DS2782_readEepromBlock(uint8_t block_num, uint8_t start_addr, uint8_t* data, uint8_t length)
 {
-	uint8_t end_addr = 0x7F;
+	uint8_t end_addr;
 	// check start read address
-	if(start_addr < 0x60 && start_addr > 0x7F) return;
-	DS2782_recallDataEepromBlock(1); // recall data from EEPROM block 1 into shadow RAM
-	if(start_addr+length < 0x7F)
+	if(block_num == 0)
+	{
+		end_addr = 0x37;
+		if(start_addr < 0x20 || start_addr > 0x37) return;
+	}
+	else if(block_num == 1)
+	{
+		end_addr = 0x7F;
+		if(start_addr < 0x60 || start_addr > 0x7F) return;
+	}
+	else
+	{
+		return;
+	}
+	// recall data from EEPROM block into shadow RAM
+	DS2782_recallDataEepromBlock(block_num);
+	// set end memory address
+	if(start_addr+length < end_addr)
 	{
 		end_addr = start_addr+length;
 	}
@@ -336,19 +356,35 @@ static void DS2782_readEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t l
 }
 
 /**
- * @brief Write data into EEPROM block 1 of DS2782
+ * @brief Write data into EEPROM block of DS2782
+ * @param: block_num - EEPROM block number (0 or 1)
  * @param: start_addr - EEPROM start address
  * @param: data - input EEPROM data
  * @param: length - data array length
  * @return: None
  */
-static void DS2782_writeEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t length)
+static void DS2782_writeEepromBlock(uint8_t block_num, uint8_t start_addr, uint8_t* data, uint8_t length)
 {
-	uint8_t end_addr = 0x7F;
+	uint8_t end_addr;
 	// check start read address
-	if(start_addr < 0x60 && start_addr > 0x7F) return;
-	DS2782_recallDataEepromBlock(1); // recall data from EEPROM block 1 into shadow RAM
-	if(start_addr+length < 0x7F)
+	if(block_num == 0)
+	{
+		end_addr = 0x37;
+		if(start_addr < 0x20 || start_addr > 0x37) return;
+	}
+	else if(block_num == 1)
+	{
+		end_addr = 0x7F;
+		if(start_addr < 0x60 || start_addr > 0x7F) return;
+	}
+	else
+	{
+		return;
+	}
+	// recall data from EEPROM block into shadow RAM
+	DS2782_recallDataEepromBlock(block_num);
+	// set end memory address
+	if(start_addr+length < end_addr)
 	{
 		end_addr = start_addr+length;
 	}
@@ -357,7 +393,7 @@ static void DS2782_writeEepromBlock1(uint8_t start_addr, uint8_t* data, uint8_t 
 	{
 		DS2782_writeRegister(start_addr+i, data[i]);
 	}
-	DS2782_copyDataEepromBlock(1); // copy data from shadow RAM into EEPROM block 1
+	DS2782_copyDataEepromBlock(block_num); // copy data from shadow RAM into EEPROM block
 }
 
 /**
@@ -391,9 +427,38 @@ static void DS2782_lockEepromBlock(uint8_t block_num)
 	HAL_Delay(5); // wait command executing
 }
 
+/**
+ * @brief Read 8-bit DS2782 register
+ * @param: addr - DS2782 register address
+ * @return: DS2782 register data
+ */
 static uint8_t DS2782_ReadRegister8b(uint8_t addr)
 {
 	return DS2782_readRegister(addr);
+}
+
+/**
+ * @brief Read registers map of DS2782
+ * @param: start_addr - register start address
+ * @param: data - DS2782 registers data
+ * @param: length - data array length
+ * @return: None
+ */
+static void DS2782_ReadRegistersMap(uint8_t start_addr, uint8_t* data, uint8_t length)
+{
+	uint8_t end_addr = 0x1F;
+	// check start address
+	if(start_addr < 0x01 || start_addr > 0x1F) return;
+	// set end register address
+	if(start_addr+length < end_addr)
+	{
+		end_addr = start_addr+length;
+	}
+	// fill out data array
+	for(uint8_t i = 0; i < end_addr-start_addr; i++)
+	{
+		data[i] = DS2782_readRegister(start_addr+i);
+	}
 }
 
 /**

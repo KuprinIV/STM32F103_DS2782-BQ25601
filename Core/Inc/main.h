@@ -74,6 +74,21 @@ void Load_66mA_Ctrl(uint8_t is_enabled);
 #define PG_Pin GPIO_PIN_5
 #define PG_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
+#define COMMANDS_ID							1
+#define COMMANDS_RESPONSE_ID				2
+
+#define COMMANDS_SZ							36
+#define COMMANDS_RESPONSE_SZ				36
+
+#define READ_DS2782_REGISTERS_DATA			0xC0
+#define READ_DS2782_EEPROM_DATA				0xC1
+#define WRITE_DS2782_EEPROM_DATA			0xC2
+#define LOCK_DS2782_EEPROM_BLOCK			0xC3
+#define READ_DS2782_EEPROM_LOCK_STATUS		0xC4
+#define READ_BQ25601_STATUS					0xC5
+#define READ_BQ25601_FAULTS					0xC6
+#define BQ25601_CHG_CTRL					0xC7
+#define LOAD_66MA_CTRL						0xC8
 
 /* USER CODE END Private defines */
 

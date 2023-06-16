@@ -99,103 +99,19 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
 		0x09, 0x01,                    // USAGE (Vendor Usage 1)
 		0xa1, 0x01,                    // COLLECTION (Application)
 
-		/** read battery data state: (bytes: 0 - report ID (0x01), 1,2 - battery voltage (in volts*100), 3,4 - battery current (in mA),
-		 5 - battery relative capacity in %) */
+		/** commands from Host report: (bytes: 0 - report ID (0x01), 1 - command ID, 2 - command data length, ) */
 		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x01,               	   //   REPORT_ID (1)
-		0x95, 0x05,                    //   REPORT_COUNT (5)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
-
-		/** read DS2782 status register: (bytes: 0 - report ID (0x02), 1 - status register value) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x02,               	   //   REPORT_ID (2)
-		0x95, 0x01,                    //   REPORT_COUNT (1)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
-
-		/** read DS2782 EEPROM block 1 lock status: (bytes: 0 - report ID (0x03), 1 - lock state (0 - isn't locked, 1 - is locked)) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x03,               	   //   REPORT_ID (3)
-		0x95, 0x01,                    //   REPORT_COUNT (1)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
-
-		/** read DS2782 EEPROM block 1 data: (bytes: 0 - report ID (0x04), 1 - start address, 2 - data length) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x04,               	   //   REPORT_ID (4)
-		0x95, 0x02,                    //   REPORT_COUNT (2)
+		0x85, COMMANDS_ID,             //   REPORT_ID (1)
+		0x95, COMMANDS_SZ,             //   REPORT_COUNT (2)
 		0x75, 0x08,                    //   REPORT_SIZE (8)
 		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
 		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
 		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
 
-		/** send DS2782 EEPROM block 1 data: (bytes: 0 - report ID (0x05), 1...32 - EEPROM block 1 data) */
+		/** commands response to the Host report: (bytes: 0 - report ID (0x01), 1 - command ID, 2 - command data length, ) */
 		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x05,               	   //   REPORT_ID (5)
-		0x95, 0x20,                    //   REPORT_COUNT (32)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
-
-		/** write DS2782 EEPROM block 1 data: (bytes: 0 - report ID (0x06), 1 - start address, 2 - data length,  3...34 - EEPROM block 1 data) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x06,               	   //   REPORT_ID (6)
-		0x95, 0x22,                    //   REPORT_COUNT (34)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
-
-		/** read BQ25601 status data: (bytes: 0 - report ID (0x07), 1...4 - BQ25601 status register value) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x07,               	   //   REPORT_ID (7)
-		0x95, 0x04,                    //   REPORT_COUNT (4)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
-
-		/** read BQ25601 fault state data: (bytes: 0 - report ID (0x08), 1...5 - BQ25601 fault register value) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x08,               	   //   REPORT_ID (8)
-		0x95, 0x05,                    //   REPORT_COUNT (5)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x81, 0x82,                    //   INPUT (Data,Var,Abs)
-
-		/** Command report: (bytes: 0 - report ID (0x09), 1 - BQ25601 charger enabled state (0 - charger disabled, 1 - charger enabled),
-		 * 2 - DS2782 EEPROM block 1 lock (1 - lock memory block), 3 - read EEPROM block 1 lock status, 4 - read BQ25601 status data),
-		 * 5 - load 66 mA ctrl (0 - disabled, 1 - enabled) */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x09,               	   //   REPORT_ID (9)
-		0x95, 0x05,                    //   REPORT_COUNT (5)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
-
-		/** Read DS2782 register data: (bytes: 0 - report ID (0x0A), 1 - MSB address, 2 - LSB address */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x0A,               	   //   REPORT_ID (10)
-		0x95, 0x02,                    //   REPORT_COUNT (2)
-		0x75, 0x08,                    //   REPORT_SIZE (8)
-		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
-		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
-		0x91, 0x82,                    //   OUTPUT (Data,Var,Abs)
-
-		/** Send DS2782 register data: (bytes: 0 - report ID (0x0A), 1 - MSB data, 2 - LSB data */
-		0x09, 0x01,                    //   USAGE (Vendor Usage 1)
-		0x85, 0x0B,               	   //   REPORT_ID (11)
-		0x95, 0x02,                    //   REPORT_COUNT (2)
+		0x85, COMMANDS_RESPONSE_ID,    //   REPORT_ID (2)
+		0x95, COMMANDS_RESPONSE_SZ,    //   REPORT_COUNT (5)
 		0x75, 0x08,                    //   REPORT_SIZE (8)
 		0x26, 0xff, 0x00,              //   LOGICAL_MAXIMUM (255)
 		0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
@@ -284,7 +200,7 @@ static int8_t CUSTOM_HID_DeInit_FS(void)
 
 uint8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len)
 {
-	uint8_t report_data[33] = {0};
+	uint8_t report_data[USBD_CUSTOMHID_INREPORT_BUF_SIZE] = {0};
 	memcpy(report_data, report, len);
 	return USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report_data, sizeof(report_data));
 }
