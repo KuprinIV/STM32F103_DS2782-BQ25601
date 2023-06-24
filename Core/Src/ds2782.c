@@ -85,7 +85,7 @@ static void DS2782_init(void)
 
 	// store battery parameters in data structure
 	ds2782_init.Rsense = 21; 				// set Rsns = 47,6 mOhm in mhOms
-	ds2782_init.rsgain = 1011;				// set Rsgain = 1011/2048 = 0,987 for adjust Rsns value close to 47 mOhm
+	ds2782_init.rsgain = 1038;				// set Rsgain = 1038/2048 = 1,014 for adjust Rsns value close to 47 mOhm
 	ds2782_init.Vcharge = 215; 				// set Vchg = 4,2 V in 19,52 mV steps. Uses for detection full-charge state
 	ds2782_init.Imin = 75; 					// set Imin = 80 mA with Rsns = 47 mOhm. Uses for detection full-charge state
 	ds2782_init.VoltAE = 169; 				// set Active Empty voltage to 3,3 V in 19.52 mV steps. Uses for detecting Active Empty state
@@ -281,7 +281,7 @@ static int16_t DS2782_readBatteryCurrent(void)
 	current_data_code = (int16_t)((current_msb_reg<<8)|(current_lsb_reg));
 
 	// convert value to mA
-	temp = (int32_t)(current_data_code*rsnsp*1024/(10*rsgain))>>6;
+	temp = (int32_t)(current_data_code*rsnsp*rsgain/10240)>>6;
 	return temp;
 }
 
